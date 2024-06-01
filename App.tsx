@@ -1,14 +1,35 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Button, StyleSheet, TouchableOpacity, Dimensions, Modal } from 'react-native';
+import { View, Text, Button, StyleSheet, TouchableOpacity, Dimensions, Modal, Alert } from 'react-native';
 import { Camera, CameraType, BarCodeScanningResult } from 'expo-camera';
 import DropDownPicker from 'react-native-dropdown-picker';
+import { BarCodeScanner } from 'expo-barcode-scanner';
 
 export default function App() {
   const [type, setType] = useState(CameraType.back);
   const [permission, requestPermission] = Camera.useCameraPermissions();
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [ignoredCodes, setIgnoredCodes] = useState<any[]>([]);
   const [capturing, setCapturing] = useState(false);
   const [scannedData, setScannedData] = useState<{ cod: string, tipo: string } | null>(null); // Estado para armazenar o código e o tipo selecionado
+
+  const { height } = Dimensions.get('window');
+  const TOP_REGION_THRESHOLD = height * 0.3;
+
+  const barcodeTypeMap = {
+    [BarCodeScanner.Constants.BarCodeType.aztec]: 'AZTEC',
+    [BarCodeScanner.Constants.BarCodeType.codabar]: 'CODABAR',
+    [BarCodeScanner.Constants.BarCodeType.code39]: 'CODE39',
+    [BarCodeScanner.Constants.BarCodeType.code93]: 'CODE93',
+    [BarCodeScanner.Constants.BarCodeType.code128]: 'CODE128',
+    [BarCodeScanner.Constants.BarCodeType.datamatrix]: 'DATAMATRIX',
+    [BarCodeScanner.Constants.BarCodeType.ean13]: 'EAN13',
+    [BarCodeScanner.Constants.BarCodeType.ean8]: 'EAN8',
+    [BarCodeScanner.Constants.BarCodeType.itf]: 'ITF',
+    [BarCodeScanner.Constants.BarCodeType.pdf417]: 'PDF417',
+    [BarCodeScanner.Constants.BarCodeType.qr]: 'QR',
+    [BarCodeScanner.Constants.BarCodeType.upc_a]: 'UPC_A',
+    [BarCodeScanner.Constants.BarCodeType.upc_e]: 'UPC_E',
+  };
 
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(null);
@@ -19,7 +40,7 @@ export default function App() {
   ]);
 
   useEffect(() => {
-    console.log(scannedData)
+    //console.log(scannedData)
   }, [scannedData])
 
   if (!permission) {
@@ -46,8 +67,75 @@ export default function App() {
   }
 
   function handleBarCodeScanned(result: BarCodeScanningResult) {
-    setScannedData({ cod: result.data, tipo: '' }); // Inicializa o tipo como vazio
-    setCapturing(false); // Parar a captura
+    //pega todos os códigos;
+    const el:any = ignoredCodes.some((ignored) => {
+      return ignored.data === result.data
+    })
+
+    if(!el){
+      setIgnoredCodes(ignoredCodes => [...ignoredCodes, result]);
+    }
+
+    setTimeout(() => {
+      setCapturing(false)
+    }, 1000)
+
+    console.log(JSON.stringify(ignoredCodes, null, 2))
+    return;
+    //teste
+    // const bounds: any = result;
+    // const type: any = result.type;
+    // const barcodeType = barcodeTypeMap[type] || `Unknown type (${type})`;
+
+    // if (ignoredCodes.includes(bounds.data)) {
+    //   Alert.alert('atenção', 'há um código inválido na tela.')
+    //   return;
+    // }
+
+    // if (barcodeType == "EAN13") {
+    //   setCapturing(false);
+    //   setIgnoredCodes(prevIgnoredCodes => [...prevIgnoredCodes, bounds.data]);
+    //   console.log('isEAN')
+    //   return
+    // }
+
+    // console.log('ignoredCodes', ignoredCodes);
+
+    // if (bounds?.boundingBox?.origin?.y > TOP_REGION_THRESHOLD) {
+    //   console.log('y-false', bounds?.boundingBox?.origin?.y)
+    //   console.log('false')
+    // } else {
+    //   console.log('y-true', bounds?.boundingBox?.origin?.y)
+    //   console.log('true', result.data)
+    // }
+    // setCapturing(false);
+    // return;
+
+    // const topLeftY = bounds.cornerPoints[0].y;
+    // const topRightY = bounds.cornerPoints[1].y;
+    // const bottomLeftY = bounds.cornerPoints[2].y;
+    // const bottomRightY = bounds.cornerPoints[3].y;
+    // const isTopRegion = (topLeftY < TOP_REGION_THRESHOLD && topRightY < TOP_REGION_THRESHOLD && bottomLeftY < TOP_REGION_THRESHOLD && bottomRightY < TOP_REGION_THRESHOLD);
+
+    // if (isTopRegion) {
+    //   console.log('isTopRegion', bounds.data)
+    // }
+    // setCapturing(false);
+    // return;
+
+
+    // const barcodeType = barcodeTypeMap[type] || `Unknown type (${type})`;
+    // console.log(JSON.stringify({ barcodeType, data }, null, 2))
+
+    // if (barcodeType == "EAN13") {
+    //   Alert.alert('atencao', '')
+    //   setCapturing(false);
+    //   return
+    // }
+    // setCapturing(false);
+
+    //setScannedData({ cod: result.data, tipo: '' }); // Inicializa o tipo como vazio
+    //setCapturing(false); // Parar a captura
   }
 
   function saveCodeBarType() {
@@ -63,13 +151,13 @@ export default function App() {
         <View style={{ flex: 1 }}>
           {cameraOpen ? (
             <View style={{ flex: 1, paddingVertical: 40, paddingHorizontal: 30, backgroundColor: '#fff', justifyContent: 'flex-start', alignItems: 'flex-start', alignContent: 'center' }}>
-              <View style={{ alignItems: 'center', gap: 10, width: '100%', paddingVertical: 20 }}>
-                <Text style={{ fontWeight: 'bold', color: '#000', textAlign: 'center', fontSize: 20 }}>{'Capturar Código de Barras'}</Text>
-                <Text style={{ color: '#000', fontSize: 14, textAlign: 'center', maxWidth: '90%' }}>{'Coloque o código de barras no local exato indicado pela área delimitada.'}</Text>
-              </View>
-              <Camera style={styles.camera} type={type} onBarCodeScanned={(result) => capturing ? handleBarCodeScanned(result) : null}>
+              <Camera
+                style={styles.camera}
+                type={type}
+                onBarCodeScanned={(result) => capturing ? handleBarCodeScanned(result) : null}
+              >
                 <View style={styles.overlay}></View>
-                <View style={styles.box}></View>
+                {/* <View style={styles.box}></View> */}
               </Camera>
               <View style={{
                 position: 'absolute',
@@ -158,6 +246,17 @@ export default function App() {
               >
                 <Text style={{ color: 'white' }}>{cameraOpen ? 'Fechar Câmera' : 'Abrir Câmera'}</Text>
               </TouchableOpacity>
+              <TouchableOpacity 
+                style={{
+                backgroundColor: '#0284c7',
+                width: '100%',
+                padding: 8,
+                borderRadius: 100,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }} onPress={() => { console.log(JSON.stringify(ignoredCodes, null, 2)) }}>
+                <Text style={{ color: '#fff' }}>Exibir Valores</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -176,7 +275,7 @@ const styles = StyleSheet.create({
     width: Dimensions.get('screen').width * .9,
     left: Dimensions.get('screen').width * .2,
     right: Dimensions.get('screen').width * .2,
-    top: Dimensions.get('screen').height * .175,
+    top: Dimensions.get('screen').height * .3,
     transform: [{ translateX: -(Dimensions.get('window').width * 0.15) }, { translateY: -(Dimensions.get('window').height * 0.15) }]
   },
   box: {
@@ -205,7 +304,7 @@ const styles = StyleSheet.create({
     left: -30,
     right: 0,
     width: Dimensions.get('screen').width,
-    height: Dimensions.get('screen').height * .4,
+    height: Dimensions.get('screen').height,
     position: 'relative',
     backgroundColor: '#fff'
     //aspectRatio: '3/5'
